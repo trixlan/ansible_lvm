@@ -1,0 +1,56 @@
+---
+- name: ListDisks
+  hosts: all
+  become: true
+  vars:
+    - disk2: "/dev/vdc"
+  tasks:
+    - name: ListDisks
+      ansible.builtin.shell: lsblk
+      register: disk_info
+    - name: Print disk information
+      debug:
+        var: disk_info.stdout_lines
+    # - name: Display Disk Information
+    #   debug:
+    #     var: ansible_facts.devices
+    # - name: Print disk result
+    #   set_fact:
+    #     # Un disco
+    #     disks: "{{  '/dev/' + item.key }}"
+    #     # Varios discos
+    #     # disks: "{{ disks|default([]) + ['/dev/' + item.key] }}"
+    #   when:
+    #   - not item.value.partitions
+    #   - not item.value.holders
+    #   - not item.value.links.ids
+    #   - item.key | regex_search ("vd")
+    #   with_dict: "{{ ansible_devices }}"
+    # - name: debug
+    #   set_fact:
+    #     disks: "/dev/vdc"
+    #   # debug:
+    #   #   var: disks
+    - name: Create PV
+      parted:
+        device: "{{ disk2 }}"
+        number: 1
+        flags: [ lvm ]
+        state: present
+        part_end: 2GB
+    # - name: mount the lv on /data1
+    #   mount:
+    #     path: /data1
+    #     src: /dev/sample-vg/sample-lv
+    #     fstype: xfs
+    #     state: unmounted
+    - name: Creating volume group
+      lvg:
+        vg: sample-vg
+        pvs: "{{ '/dev/vdb1,' + disk2 + '1' }}"
+    - name: Extend the logical volume to 1024m.
+      lvol:
+        vg: sample-vg
+        lv: sample-lv
+        size: 80%PVS
+        resizefs: true

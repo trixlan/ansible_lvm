@@ -1,0 +1,72 @@
+---
+- name: ListDisks
+  hosts: all
+  become: true
+  vars:
+    - disk1: "/dev/vdb"
+    - disk2: "/dev/vdc"
+
+  tasks:
+    - name: ListDisks
+      ansible.builtin.shell: lsblk -fa
+      register: disk_info
+    - name: Print disk information
+      debug:
+        var: disk_info.stdout_lines
+    # - name: Display Disk Information
+    #   debug:
+    #     var: ansible_facts.devices
+    # - name: Print disk result
+    #   set_fact:
+    #     # Un disco
+    #     disks: "{{  '/dev/' + item.key }}"
+    #     # Varios discos
+    #     # disks: "{{ disks|default([]) + ['/dev/' + item.key] }}"
+    #   when:
+    #   - not item.value.partitions
+    #   - not item.value.holders
+    #   - not item.value.links.ids
+    #   - item.key | regex_search ("vd")
+    #   with_dict: "{{ ansible_devices }}"
+    # - name: debug
+    #   set_fact:
+    #     disks: "/dev/vdb"
+    #   # debug:
+    #   #   var: disks
+    - name: create partition
+      parted:
+        device: "{{ disk1 }}"
+        number: 1
+        flags: [ lvm ]
+        state: present
+        part_end: 2GB
+    - name: Creating volume group
+      lvg:
+        vg: sample-vg
+        pvs: "{{ disk1 + '1' }}"
+        pesize: 16
+    - name: Install lvm2 dependency
+      package:
+        name: lvm2
+        state: present
+    - name: Creating logical volume
+      lvol:
+          vg: sample-vg
+          lv:  sample-lv
+          size: 1.5g
+          force: yes
+    - name: Create directory data1 if does not exist
+      file:
+        path: /data1
+        state: directory
+        mode: '0755'
+    - name: format the xfs filesystem
+      filesystem:
+        fstype: xfs
+        dev: /dev/sample-vg/sample-lv
+    - name: mount the lv on /data1
+      mount:
+        path: /data1
+        src: /dev/sample-vg/sample-lv
+        fstype: xfs
+        state: mounted
