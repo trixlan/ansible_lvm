@@ -1,5 +1,8 @@
 ---
 - name: ListDisks
+  collections:
+    - community.general
+    - ansible.posix
   hosts: all
   become: true
   vars:
